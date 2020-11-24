@@ -3,11 +3,14 @@
 #[macro_use]
 extern crate rocket;
 
-#[get("/")]
-fn index() -> &'static str {
+mod data;
+
+#[post("/create")]
+fn create() -> &'static str {
     "Hello, world!"
 }
 
 fn main() {
-    rocket::ignite().mount("/", routes![index]).launch();
+    data::Db::new().unwrap().setup().unwrap();
+    rocket::ignite().mount("/api", routes![create]).launch();
 }
