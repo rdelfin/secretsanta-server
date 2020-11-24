@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Participant {
@@ -38,6 +39,11 @@ pub struct CreateResponse {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct BeginRequest {
     pub game_id: i64,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct BeginResponse {
+    pub ok: bool,
 }
 
 pub struct Db {
@@ -114,5 +120,34 @@ impl Db {
         }
 
         Ok(game_id)
+    }
+
+    pub fn get_participant_ids(&self, game_id: i64) -> Result<Vec<i64>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT ROWID FROM Participant WHERE game_id=?1")?;
+        let row_map = stmt.query_map(params![game_id], |row| row.get(0))?;
+
+        let mut result = vec![];
+        for row in row_map {
+            result.push(row?);
+        }
+        Ok(result)
+    }
+
+    pub fn assign_and_begin(&self, game_id: i64, pid_maps: &HashMap<i64, i64>) -> Result<()> {
+        for (gifter, giftee) in pid_maps {
+            self.conn.execute(
+                "UPDATE Participant SET gift_to = ?1 WHERE ROWID = ?2",
+                params![giftee, gifter],
+            )?;
+        }
+
+        self.conn.execute(
+            "UPDATE Game SET begun = 1 WHERE ROWID = ?1",
+            params![game_id],
+        )?;
+
+        Ok(())
     }
 }
