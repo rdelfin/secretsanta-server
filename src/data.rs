@@ -35,6 +35,11 @@ pub struct CreateResponse {
     pub game_id: i64,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct BeginRequest {
+    pub game_id: i64,
+}
+
 pub struct Db {
     conn: Connection,
 }
@@ -53,7 +58,8 @@ impl Db {
                     gift_date           VARCHAR(100),
                     max_price_val       REAL,
                     max_price_currency  VARCHAR(5),
-                    msg_notes           TEXT
+                    msg_notes           TEXT,
+                    begun               BOOLEAN
              )",
             params![],
         )?;
@@ -64,7 +70,9 @@ impl Db {
                     name           TEXT NOT NULL,
                     email          TEXT NOT NULL,
                     extra_details  TEXT,
+                    gift_to        INTEGER,
                     FOREIGN KEY(game_id) REFERENCES Game(ROWID)
+                    FOREIGN KEY(gift_to) REFERENCES Participant(ROWID)
              )",
             params![],
         )?;
@@ -75,9 +83,9 @@ impl Db {
     pub fn create_game(&self, game: &SecretSanta) -> Result<i64> {
         self.conn.execute(
             "INSERT INTO Game (
-                name, gift_date, max_price_val, max_price_currency, msg_notes
+                name, gift_date, max_price_val, max_price_currency, msg_notes, begun
             ) VALUES (
-                ?1, ?2, ?3, ?4, ?5
+                ?1, ?2, ?3, ?4, ?5, 0
             )",
             params![
                 game.name,
