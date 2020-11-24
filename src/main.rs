@@ -6,7 +6,10 @@ extern crate rocket;
 mod data;
 
 use crate::data::{BeginRequest, BeginResponse, CreateRequest, CreateResponse};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use rocket_contrib::json::Json;
+use std::collections::HashMap;
 
 #[post("/create", format = "json", data = "<req>")]
 fn create(req: Json<CreateRequest>) -> Json<CreateResponse> {
@@ -19,6 +22,26 @@ fn create(req: Json<CreateRequest>) -> Json<CreateResponse> {
 
 #[post("/begin", format = "json", data = "<req>")]
 fn begin(req: Json<BeginRequest>) -> Json<BeginResponse> {
+    let db = data::Db::new().unwrap();
+    let mut rng = thread_rng();
+    // Fetch user IDs
+    let mut participant_ids = db.get_participant_ids(req.game_id).unwrap();
+
+    // Shuffle and generate mappings
+    participant_ids.shuffle(&mut rng);
+    let mut mappings: HashMap<i64, i64> = HashMap::new();
+
+    for idx in 0..participant_ids.len() {
+        mappings.insert(
+            participant_ids[idx],
+            participant_ids[(idx + 1) % participant_ids.len()],
+        );
+    }
+
+    // Assign shuffled mappings to db
+    db.assign_and_begin(req.game_id, &mappings).unwrap();
+
+    // Shuffle vector
     Json(BeginResponse { ok: true })
 }
 
