@@ -4,6 +4,7 @@
 extern crate rocket;
 
 mod data;
+mod email;
 
 use crate::data::{BeginRequest, BeginResponse, CreateRequest, CreateResponse};
 use rand::seq::SliceRandom;
