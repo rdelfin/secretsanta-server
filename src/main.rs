@@ -6,7 +6,10 @@ extern crate rocket;
 mod data;
 mod email;
 
-use crate::data::{BeginRequest, BeginResponse, CreateRequest, CreateResponse};
+use crate::{
+    data::{BeginRequest, BeginResponse, CreateRequest, CreateResponse},
+    email::Mailer,
+};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rocket_contrib::json::Json;
@@ -15,10 +18,13 @@ use std::collections::HashMap;
 #[post("/create", format = "json", data = "<req>")]
 fn create(req: Json<CreateRequest>) -> Json<CreateResponse> {
     let db = data::Db::new().unwrap();
+    let mut email_sender = Mailer::new().unwrap();
+    let game_id = db.create_game(&req.secret_santa).unwrap();
 
-    Json(CreateResponse {
-        game_id: db.create_game(&req.secret_santa).unwrap(),
-    })
+    email_sender
+        .send_admin_email(game_id, &req.secret_santa.admin_email)
+        .unwrap();
+    Json(CreateResponse { game_id })
 }
 
 #[post("/begin", format = "json", data = "<req>")]

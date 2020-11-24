@@ -20,6 +20,8 @@ pub struct Currency {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SecretSanta {
     pub name: String,
+    pub admin_name: String,
+    pub admin_email: String,
     pub gift_date: DateTime<Utc>,
     pub max_price: Currency,
     pub msg_notes: String,
@@ -61,6 +63,8 @@ impl Db {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS Game (
                     name                TEXT NOT NULL,
+                    admin_name          TEXT NOT NULL,
+                    admin_email         TEXT NOT NULL,
                     gift_date           VARCHAR(100),
                     max_price_val       REAL,
                     max_price_currency  VARCHAR(5),
@@ -89,12 +93,15 @@ impl Db {
     pub fn create_game(&self, game: &SecretSanta) -> Result<i64> {
         self.conn.execute(
             "INSERT INTO Game (
-                name, gift_date, max_price_val, max_price_currency, msg_notes, begun
+                name, admin_name, admin_email, gift_date, max_price_val,
+                max_price_currency, msg_notes, begun
             ) VALUES (
-                ?1, ?2, ?3, ?4, ?5, 0
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7, 0
             )",
             params![
                 game.name,
+                game.admin_name,
+                game.admin_email,
                 game.gift_date.to_rfc3339(),
                 game.max_price.amount.to_string(),
                 game.max_price.currency,
