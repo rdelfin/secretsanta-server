@@ -30,6 +30,11 @@ pub struct CreateRequest {
     pub secret_santa: SecretSanta,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct CreateResponse {
+    pub game_id: i64,
+}
+
 pub struct Db {
     conn: Connection,
 }
