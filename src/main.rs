@@ -7,7 +7,7 @@ mod data;
 mod email;
 
 use crate::{
-    data::{BeginRequest, BeginResponse, CreateRequest, CreateResponse},
+    data::{BeginRequest, BeginResponse, CreateRequest, CreateResponse, Participant},
     email::Mailer,
 };
 use rand::seq::SliceRandom;
@@ -30,25 +30,45 @@ fn create(req: Json<CreateRequest>) -> Json<CreateResponse> {
 #[post("/begin", format = "json", data = "<req>")]
 fn begin(req: Json<BeginRequest>) -> Json<BeginResponse> {
     let db = data::Db::new().unwrap();
+    let mut email_sender = Mailer::new().unwrap();
     let mut rng = thread_rng();
-    // Fetch user IDs
-    let mut participant_ids = db.get_participant_ids(req.game_id).unwrap();
+
+    // Fetch users
+    let game = db.get_game(req.game_id).unwrap();
+    let mut participants = game.participants.clone();
 
     // Shuffle and generate mappings
-    participant_ids.shuffle(&mut rng);
+    participants.shuffle(&mut rng);
     let mut mappings: HashMap<i64, i64> = HashMap::new();
+    let mut participant_mappings: Vec<(&Participant, &Participant)> = vec![];
 
-    for idx in 0..participant_ids.len() {
+    for idx in 0..participants.len() {
         mappings.insert(
-            participant_ids[idx],
-            participant_ids[(idx + 1) % participant_ids.len()],
+            participants[idx].id.unwrap(),
+            participants[(idx + 1) % participants.len()].id.unwrap(),
         );
+        participant_mappings.push((
+            &participants[idx],
+            &participants[(idx + 1) % participants.len()],
+        ))
     }
 
     // Assign shuffled mappings to db
     db.assign_and_begin(req.game_id, &mappings).unwrap();
 
-    // Shuffle vector
+    for (gifter, giftee) in &participant_mappings {
+        email_sender
+            .send_begin_email(
+                gifter,
+                giftee,
+                &game.gift_date,
+                &game.max_price,
+                &game.msg_notes,
+                &game.admin_name,
+            )
+            .unwrap();
+    }
+
     Json(BeginResponse { ok: true })
 }
 

@@ -1,23 +1,24 @@
-use anyhow::Result;
+use anyhow;
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Error as RusqliteError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Participant {
     pub name: String,
     pub email: String,
     pub extra_details: String,
+    pub id: Option<i64>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Currency {
-    pub amount: f32,
+    pub amount: f64,
     pub currency: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SecretSanta {
     pub name: String,
     pub admin_name: String,
@@ -28,22 +29,22 @@ pub struct SecretSanta {
     pub participants: Vec<Participant>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct CreateRequest {
     pub secret_santa: SecretSanta,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct CreateResponse {
     pub game_id: i64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BeginRequest {
     pub game_id: i64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BeginResponse {
     pub ok: bool,
 }
@@ -53,13 +54,13 @@ pub struct Db {
 }
 
 impl Db {
-    pub fn new() -> Result<Db> {
+    pub fn new() -> anyhow::Result<Db> {
         Ok(Db {
             conn: Connection::open("./db.sqlite")?,
         })
     }
 
-    pub fn setup(&self) -> Result<()> {
+    pub fn setup(&self) -> anyhow::Result<()> {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS Game (
                     name                TEXT NOT NULL,
@@ -90,7 +91,7 @@ impl Db {
         Ok(())
     }
 
-    pub fn create_game(&self, game: &SecretSanta) -> Result<i64> {
+    pub fn create_game(&self, game: &SecretSanta) -> anyhow::Result<i64> {
         self.conn.execute(
             "INSERT INTO Game (
                 name, admin_name, admin_email, gift_date, max_price_val,
@@ -129,20 +130,58 @@ impl Db {
         Ok(game_id)
     }
 
-    pub fn get_participant_ids(&self, game_id: i64) -> Result<Vec<i64>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT ROWID FROM Participant WHERE game_id=?1")?;
-        let row_map = stmt.query_map(params![game_id], |row| row.get(0))?;
-
-        let mut result = vec![];
-        for row in row_map {
-            result.push(row?);
-        }
-        Ok(result)
+    fn get_participants(&self, game_id: i64) -> anyhow::Result<Vec<Participant>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT ROWID, name, email, extra_details
+                    FROM Participant WHERE game_id=?1",
+        )?;
+        let participant_list = stmt
+            .query_map(params![game_id], |row| {
+                Ok(Participant {
+                    id: Some(row.get(0)?),
+                    name: row.get(1)?,
+                    email: row.get(2)?,
+                    extra_details: row.get(3)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, RusqliteError>>()?;
+        Ok(participant_list)
     }
 
-    pub fn assign_and_begin(&self, game_id: i64, pid_maps: &HashMap<i64, i64>) -> Result<()> {
+    pub fn get_game(&self, game_id: i64) -> anyhow::Result<SecretSanta> {
+        let mut game = self.conn.query_row(
+            "SELECT
+                name, admin_name, admin_email, gift_date, max_price_val,
+                max_price_currency, msg_notes
+             FROM Game WHERE ROWID = ?1",
+            params![game_id],
+            |row| {
+                Ok(SecretSanta {
+                    name: row.get(0)?,
+                    admin_name: row.get(1)?,
+                    admin_email: row.get(2)?,
+                    gift_date: DateTime::parse_from_rfc3339(&row.get::<usize, String>(3)?)
+                        .unwrap()
+                        .with_timezone(&Utc),
+                    max_price: Currency {
+                        amount: row.get::<usize, f64>(4)?,
+                        currency: row.get(5)?,
+                    },
+                    msg_notes: row.get(6)?,
+                    participants: vec![],
+                })
+            },
+        )?;
+
+        game.participants = self.get_participants(game_id)?;
+        Ok(game)
+    }
+
+    pub fn assign_and_begin(
+        &self,
+        game_id: i64,
+        pid_maps: &HashMap<i64, i64>,
+    ) -> anyhow::Result<()> {
         for (gifter, giftee) in pid_maps {
             self.conn.execute(
                 "UPDATE Participant SET gift_to = ?1 WHERE ROWID = ?2",

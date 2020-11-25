@@ -106,8 +106,8 @@ impl Mailer {
         &mut self,
         gifter: &Participant,
         giftee: &Participant,
-        gift_date: DateTime<Utc>,
-        max_price: Currency,
+        gift_date: &DateTime<Utc>,
+        max_price: &Currency,
         game_notes: &str,
         admin_name: &str,
     ) -> Result<()> {
