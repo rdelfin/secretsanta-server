@@ -107,66 +107,61 @@ impl Mailer {
         gifter: &Participant,
         giftee: &Participant,
         gift_date: &DateTime<Utc>,
-        max_price: &Currency,
+        _max_price: &Currency,
         game_notes: &str,
         admin_name: &str,
     ) -> Result<()> {
         self.send_email(
             &gifter.email,
-            "Welcome to this Secret Santa",
+            "Bienvenido/a a este Secret Santa!",
             &format!(
-                "Welcome {name} to this Secret Santa! This was setup by {admin}. This
-                email contains information about  this Secret Santa and who you'll be
-                giving a gift to so pay close attention and save it for future
-                reference.
+                "Bienvenido {name} a este Secret Santa creado por {admin}! En este
+                correo vas a encontrar toda la información para esta navidad y a quien
+                le vas a dar un regalo, entonces presta atención y guardalo para
+                referencia a futuro.
 
-                You will be giving a gift to {giftee_name} (email: {giftee_email}). We
-                have the following notes regarding your gift recepient:
+                Tú le vas a dar un regalo a {giftee_name} (email: {giftee_email}). La
+                persona que creó este Secret Santa te dejó estas notas sobre la persona
+                a la que le vas a dar un regalo:
 
                 {giftee_notes}
 
-                Now that the reveal is out of the way, here are some important details.
-                {admin} has set the max gift price to {max_val} {max_currency}. The
-                gift is due on {due}. {admin} also left the following message for all
-                of you:
+                Ahora que ya sabes el secreto, siguen los detalles. {admin} puso la
+                fecha para el intercambio como {due}. {admin} también les dejó este
+                mensaje a todos los participantes:
 
                 {admin_notes}
 
-
-                Enjoy and Happy Holidays!",
+                Disfruten y ¡feliz navidad!",
                 name = gifter.name,
                 admin = admin_name,
                 giftee_name = giftee.name,
                 giftee_email = giftee.email,
                 giftee_notes = giftee.extra_details,
-                max_val = max_price.amount,
-                max_currency = max_price.currency,
                 admin_notes = game_notes,
                 due = gift_date.date(),
             ),
             &format!(
                 "<noscript>
-                <p>Welcome {name} to this Secret Santa! This was setup by {admin}. This
-                email contains information about  this Secret Santa and who you'll be
-                giving a gift to so pay close attention and save it for future
-                reference.</p>
-                <p>You will be giving a gift to {giftee_name} (email: {giftee_email}). We
-                have the following notes regarding your gift recepient:</p>
+                <p>Bienvenido {name} a este Secret Santa creado por {admin}! En este
+                correo vas a encontrar toda la información para esta navidad y a quien
+                le vas a dar un regalo, entonces presta atención y guardalo para
+                referencia a futuro.</p>
+                <p>Tú le vas a dar un regalo a {giftee_name} (email: {giftee_email}). La
+                persona que creó este Secret Santa te dejó estas notas sobre la persona
+                a la que le vas a dar un regalo:</p>
                 <p>{giftee_notes}</p>
-                <p>Now that the reveal is out of the way, here are some important details.
-                {admin} has set the max gift price to {max_val} {max_currency}. The
-                gift is due on {due}. {admin} also left the following message for all
-                of you:</p>
+                <p>Ahora que ya sabes el secreto, siguen los detalles. {admin} puso la
+                fecha para el intercambio como {due}. {admin} también les dejó este
+                mensaje a todos los participantes:</p>
                 <p>{admin_notes}</p>
-                <p>Enjoy and Happy Holidays!</p>
+                <p>Disfruten y ¡feliz navidad!</p>
                 </noscript>",
                 name = gifter.name,
                 admin = admin_name,
                 giftee_name = giftee.name,
                 giftee_email = giftee.email,
                 giftee_notes = giftee.extra_details,
-                max_val = max_price.amount,
-                max_currency = max_price.currency,
                 admin_notes = game_notes,
                 due = gift_date.date(),
             ),
